@@ -1,0 +1,1833 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 /**\
+ * COMPLETE FITNESS SESSION TRACKING SYSTEM\
+ * Copy this ENTIRE file and paste it into your Apps Script\
+ * Then run: 1) configureAllTokens, 2) testSquareConnection, 3) setupFitnessTracker\
+ */\
+\
+// ============== PART 1: TOKEN CONFIGURATION ==============\
+function configureAllTokens() \{\
+  const props = PropertiesService.getScriptProperties();\
+  \
+  // Set all three Square account tokens\
+  props.setProperty('APPOINTMENTS_TOKEN', 'EAAAlybW0ZQ4fzYPnQAFjHq8uCxQIgQWgBFCE3YgCPBhcEXm061WAf5D2BOA8QzX');\
+  props.setProperty('SALES_TOKEN', 'EAAAl4oa1RGJImeakyU_8nuTnO9IfNO67qFjw0pAXeF_o8g70bAgFgC1ziqwxqwi');\
+  props.setProperty('UNIFIED_TOKEN', 'EAAAl9ghon-AGwQ3enF9tDhSmPJo-xmf7RasfzOzzBY50Zt_w-DY1g_mtieCjD2x');\
+  \
+  // Set location IDs for each account\
+  props.setProperty('APPOINTMENTS_LOCATION', 'LV7FY976R8GJE');  // shmockeyfit@gmail.com\
+  props.setProperty('SALES_LOCATION', 'LPWXGKNG8E2W5');        // mike@thefitclinicsj.com\
+  props.setProperty('UNIFIED_LOCATION', 'LASBJV104DZ44');       // mike@fitclinic.io\
+  \
+  // Set other default properties\
+  props.setProperty('MATCH_WINDOW_DAYS', '1');\
+  props.setProperty('BATCH_SIZE', '50');\
+  \
+  // Confirm tokens are set\
+  const ui = SpreadsheetApp.getUi();\
+  ui.alert(\
+    'Configuration Complete!',\
+    'All three Square accounts have been connected:\\n\\n' +\
+    '\uc0\u10003  Appointments (shmockeyfit@gmail.com)\\n' +\
+    '   Location: LV7FY976R8GJE\\n\\n' +\
+    '\uc0\u10003  Sales (mike@thefitclinicsj.com)\\n' +\
+    '   Location: LPWXGKNG8E2W5\\n\\n' +\
+    '\uc0\u10003  Unified (mike@fitclinic.io)\\n' +\
+    '   Location: LASBJV104DZ44\\n\\n' +\
+    'Next: Run setupFitnessTracker() to create all sheets.',\
+    ui.ButtonSet.OK\
+  );\
+\}\
+\
+function testSquareConnection() \{\
+  const props = PropertiesService.getScriptProperties();\
+  const appointmentsToken = props.getProperty('APPOINTMENTS_TOKEN');\
+  const salesToken = props.getProperty('SALES_TOKEN');\
+  const unifiedToken = props.getProperty('UNIFIED_TOKEN');\
+  \
+  const results = [];\
+  \
+  // Test appointments account\
+  try \{\
+    const response = UrlFetchApp.fetch('https://connect.squareup.com/v2/locations', \{\
+      method: 'get',\
+      headers: \{\
+        'Authorization': 'Bearer ' + appointmentsToken,\
+        'Square-Version': '2024-01-18'\
+      \},\
+      muteHttpExceptions: true\
+    \});\
+    \
+    if (response.getResponseCode() === 200) \{\
+      const data = JSON.parse(response.getContentText());\
+      const location = data.locations?.find(loc => loc.id === 'LV7FY976R8GJE');\
+      results.push('\uc0\u10003  Appointments account connected' + (location ? ' - ' + location.name : ''));\
+    \} else \{\
+      results.push('\uc0\u10007  Appointments account failed: ' + response.getResponseCode());\
+    \}\
+  \} catch (e) \{\
+    results.push('\uc0\u10007  Appointments account error: ' + e.toString());\
+  \}\
+  \
+  // Test sales account\
+  try \{\
+    const response = UrlFetchApp.fetch('https://connect.squareup.com/v2/locations', \{\
+      method: 'get',\
+      headers: \{\
+        'Authorization': 'Bearer ' + salesToken,\
+        'Square-Version': '2024-01-18'\
+      \},\
+      muteHttpExceptions: true\
+    \});\
+    \
+    if (response.getResponseCode() === 200) \{\
+      const data = JSON.parse(response.getContentText());\
+      const location = data.locations?.find(loc => loc.id === 'LPWXGKNG8E2W5');\
+      results.push('\uc0\u10003  Sales account connected' + (location ? ' - ' + location.name : ''));\
+    \} else \{\
+      results.push('\uc0\u10007  Sales account failed: ' + response.getResponseCode());\
+    \}\
+  \} catch (e) \{\
+    results.push('\uc0\u10007  Sales account error: ' + e.toString());\
+  \}\
+  \
+  // Test unified account\
+  try \{\
+    const response = UrlFetchApp.fetch('https://connect.squareup.com/v2/locations', \{\
+      method: 'get',\
+      headers: \{\
+        'Authorization': 'Bearer ' + unifiedToken,\
+        'Square-Version': '2024-01-18'\
+      \},\
+      muteHttpExceptions: true\
+    \});\
+    \
+    if (response.getResponseCode() === 200) \{\
+      const data = JSON.parse(response.getContentText());\
+      const location = data.locations?.find(loc => loc.id === 'LASBJV104DZ44');\
+      results.push('\uc0\u10003  Unified account connected' + (location ? ' - ' + location.name : ''));\
+    \} else \{\
+      results.push('\uc0\u10007  Unified account failed: ' + response.getResponseCode());\
+    \}\
+  \} catch (e) \{\
+    results.push('\uc0\u10007  Unified account error: ' + e.toString());\
+  \}\
+  \
+  SpreadsheetApp.getUi().alert(\
+    'Connection Test Results',\
+    results.join('\\n'),\
+    SpreadsheetApp.getUi().ButtonSet.OK\
+  );\
+\}\
+\
+// ============== PART 2: MAIN CONFIGURATION ==============\
+const CONFIG = \{\
+  ACCOUNTS: \{\
+    APPOINTMENTS_OLD: \{\
+      email: 'shmockeyfit@gmail.com',\
+      name: 'Fitness With Mike',\
+      type: 'appointments',\
+      cutoffDate: new Date('2025-09-04')\
+    \},\
+    SALES: \{\
+      email: 'mike@thefitclinicsj.com',\
+      name: 'The Fit Clinic LLC',\
+      type: 'sales',\
+      locationId: 'LPWXGKNG8E2W5'\
+    \},\
+    UNIFIED_NEW: \{\
+      email: 'mike@fitclinic.io',\
+      name: 'The Fit Clinic',\
+      type: 'unified',\
+      startDate: new Date('2025-09-04'),\
+      locationId: 'LASBJV104DZ44'\
+    \}\
+  \},\
+  TANDEM: \{\
+    SESSION_CREDIT: 15,    // $15 credit per person\
+    TRAINER_BONUS: 15      // $15 extra per additional person\
+  \},\
+  BATCH_SIZE: 50,\
+  API_BASE_URL: 'https://connect.squareup.com/v2',\
+  MATCH_WINDOW_DAYS: 1\
+\};\
+\
+// Tab names\
+const TABS = \{\
+  CLIENTS: 'Clients',\
+  CUSTOMER_ID_MAP: 'CustomerIDMap',\
+  SALES: 'Sales',\
+  ADJUSTMENTS: 'Adjustments',\
+  SESSION_LOGS: 'Session Logs',\
+  SESSION_COUNTER: 'SessionCounter',\
+  MAPPINGS: 'Mappings',\
+  STAFF: 'Staff',\
+  PAYROLL: 'Payroll',\
+  VIEWS_GOOGLE_SITES: 'Views_GoogleSites',\
+  DISCREPANCIES: 'Discrepancies',\
+  ETL_AUDIT: 'ETL_Audit'\
+\};\
+\
+// ============== MAIN SETUP FUNCTION ==============\
+function setupFitnessTracker() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  \
+  try \{\
+    createSheets(ss);\
+    setupFormulas(ss);\
+    createTriggers();\
+    initializeProperties();\
+    createCustomMenu();\
+    \
+    SpreadsheetApp.getUi().alert(\
+      'Setup Complete!',\
+      'Your fitness tracker is ready!\\n\\n' +\
+      'Next steps:\\n' +\
+      '1. Import your existing data using Data Import menu\\n' +\
+      '2. Deploy as Web App for webhooks\\n' +\
+      '3. Set up Google Sites for client/staff portals',\
+      SpreadsheetApp.getUi().ButtonSet.OK\
+    );\
+  \} catch (error) \{\
+    SpreadsheetApp.getUi().alert('Setup Error', error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);\
+  \}\
+\}\
+\
+// ============== SHEET CREATION ==============\
+function createSheets(ss) \{\
+  // Clients sheet\
+  createOrUpdateSheet(ss, TABS.CLIENTS, [\
+    ['ClientID', 'First', 'Last', 'Email', 'Phone', 'Status', 'PrimaryCustomerID', 'AllCustomerIDs']\
+  ]);\
+  \
+  // Customer ID Mapping sheet\
+  createOrUpdateSheet(ss, TABS.CUSTOMER_ID_MAP, [\
+    ['OldCustomerID', 'NewCustomerID', 'ClientName', 'Email', 'Source', 'DateMapped', 'Active']\
+  ]);\
+  \
+  // Sales sheet\
+  createOrUpdateSheet(ss, TABS.SALES, [\
+    ['SaleID', 'ClientID', 'CustomerID', 'PackageName', 'SessionsPurchased', 'StartCountDate', \
+     'PurchaseDate', 'Price', 'Trainer', 'Source', 'Notes']\
+  ]);\
+  \
+  // Adjustments sheet\
+  createOrUpdateSheet(ss, TABS.ADJUSTMENTS, [\
+    ['AdjID', 'ClientID', 'SaleID', 'AdjType', 'Qty', 'Amount', 'Reason', 'Date', 'RelatedSessionID']\
+  ]);\
+  \
+  // Session Logs sheet\
+  createOrUpdateSheet(ss, TABS.SESSION_LOGS, [\
+    ['LogID', 'Timestamp', 'ClientID', 'CustomerID', 'Trainer', 'Title', 'Status', 'Location', \
+     'Minutes', 'Keywords', 'Processed', 'DeductQty', 'MatchedSaleID', 'IsTandem', 'TandemPartner']\
+  ]);\
+  \
+  // SessionCounter sheet\
+  createOrUpdateSheet(ss, TABS.SESSION_COUNTER, [\
+    ['ClientID', 'Name', 'ActivePackage', 'SessionsPurchased', 'SessionsUsed', 'AdjNet', \
+     'SessionsLeft', 'TandemCredits', 'StartCountDate']\
+  ]);\
+  \
+  // Mappings sheet\
+  createOrUpdateSheet(ss, TABS.MAPPINGS, [\
+    ['Keyword', 'DeductQty', 'SessionType', 'TrainerRate', 'PackageFilter']\
+  ]);\
+  \
+  // Add default mappings\
+  const mappingsSheet = ss.getSheetByName(TABS.MAPPINGS);\
+  if (mappingsSheet.getLastRow() === 1) \{\
+    mappingsSheet.getRange('A2:E7').setValues([\
+      ['pt-60', '1', 'Personal Training 60', '', ''],\
+      ['pt-30', '0.5', 'Personal Training 30', '', ''],\
+      ['tandem', '1', 'Tandem Session', '', ''],\
+      ['semi-private', '1', 'Semi Private', '', ''],\
+      ['assessment', '0', 'Assessment', '', ''],\
+      ['no-show', '0.5', 'No Show', '', '']\
+    ]);\
+  \}\
+  \
+  // Staff sheet\
+  createOrUpdateSheet(ss, TABS.STAFF, [\
+    ['StaffID', 'Name', 'Email', 'Role', 'BaseRate', 'Active']\
+  ]);\
+  \
+  // Payroll sheet\
+  createOrUpdateSheet(ss, TABS.PAYROLL, [\
+    ['PayrollID', 'Trainer', 'SessionID', 'Date', 'SessionType', 'BaseRate', \
+     'TandemBonus', 'TotalPay', 'Status', 'PaymentDate']\
+  ]);\
+  \
+  // Views for Google Sites\
+  createOrUpdateSheet(ss, TABS.VIEWS_GOOGLE_SITES, [\
+    ['View Name', 'Query', 'Description', 'Access Level']\
+  ]);\
+  \
+  // Discrepancies sheet\
+  createOrUpdateSheet(ss, TABS.DISCREPANCIES, [\
+    ['LogID', 'ClientID', 'CustomerID', 'Date', 'Reason', 'ReviewedDate', 'Resolution']\
+  ]);\
+  \
+  // ETL Audit sheet\
+  createOrUpdateSheet(ss, TABS.ETL_AUDIT, [\
+    ['RunID', 'Timestamp', 'Source', 'RecordsProcessed', 'MatchedCount', \
+     'UnmatchedCount', 'ErrorCount', 'Duration', 'Notes']\
+  ]);\
+\}\
+\
+function createOrUpdateSheet(ss, sheetName, headers) \{\
+  let sheet = ss.getSheetByName(sheetName);\
+  if (!sheet) \{\
+    sheet = ss.insertSheet(sheetName);\
+  \}\
+  \
+  if (sheet.getLastRow() === 0) \{\
+    sheet.getRange(1, 1, 1, headers[0].length).setValues(headers);\
+    sheet.getRange(1, 1, 1, headers[0].length).setFontWeight('bold');\
+    \
+    if (sheetName === TABS.SESSION_LOGS) \{\
+      const statusRule = SpreadsheetApp.newDataValidation()\
+        .requireValueInList(['Completed', 'Cancelled', 'No-Show', 'Pending'])\
+        .build();\
+      sheet.getRange('G2:G').setDataValidation(statusRule);\
+    \}\
+  \}\
+  \
+  return sheet;\
+\}\
+\
+// ============== FORMULA SETUP ==============\
+function setupFormulas(ss) \{\
+  const counterSheet = ss.getSheetByName(TABS.SESSION_COUNTER);\
+  const lastRow = Math.max(100, counterSheet.getLastRow());\
+  \
+  const purchasedFormula = `=IFERROR(SUMIFS('$\{TABS.SALES\}'!E:E, '$\{TABS.SALES\}'!B:B, A2), 0)`;\
+  counterSheet.getRange(`D2:D$\{lastRow\}`).setFormula(purchasedFormula);\
+  \
+  const usedFormula = `=IFERROR(SUMIFS('$\{TABS.SESSION_LOGS\}'!L:L, '$\{TABS.SESSION_LOGS\}'!C:C, A2, '$\{TABS.SESSION_LOGS\}'!K:K, TRUE), 0)`;\
+  counterSheet.getRange(`E2:E$\{lastRow\}`).setFormula(usedFormula);\
+  \
+  const adjNetFormula = `=IFERROR(SUMIFS('$\{TABS.ADJUSTMENTS\}'!E:E, '$\{TABS.ADJUSTMENTS\}'!B:B, A2, '$\{TABS.ADJUSTMENTS\}'!D:D, "credit") - SUMIFS('$\{TABS.ADJUSTMENTS\}'!E:E, '$\{TABS.ADJUSTMENTS\}'!B:B, A2, '$\{TABS.ADJUSTMENTS\}'!D:D, "debit"), 0)`;\
+  counterSheet.getRange(`F2:F$\{lastRow\}`).setFormula(adjNetFormula);\
+  \
+  const leftFormula = '=MAX(D2 + F2 - E2, 0)';\
+  counterSheet.getRange(`G2:G$\{lastRow\}`).setFormula(leftFormula);\
+  \
+  const tandemCreditsFormula = `=IFERROR(SUMIFS('$\{TABS.ADJUSTMENTS\}'!F:F, '$\{TABS.ADJUSTMENTS\}'!B:B, A2, '$\{TABS.ADJUSTMENTS\}'!G:G, "Tandem Credit"), 0)`;\
+  counterSheet.getRange(`H2:H$\{lastRow\}`).setFormula(tandemCreditsFormula);\
+  \
+  setupGoogleSitesViews(ss);\
+\}\
+\
+function setupGoogleSitesViews(ss) \{\
+  const viewsSheet = ss.getSheetByName(TABS.VIEWS_GOOGLE_SITES);\
+  viewsSheet.getRange('A2:D5').setValues([\
+    ['Client View', \
+     `=QUERY('$\{TABS.SESSION_COUNTER\}'!A:I, "select A, B, C, G, H where A is not null and A != '' order by B")`,\
+     'Client session balances and tandem credits',\
+     'Client'],\
+    ['Trainer Dashboard', \
+     `=QUERY('$\{TABS.SESSION_LOGS\}'!A:O, "select C, D, E, B, F, L, N where K = TRUE and E is not null order by B desc")`,\
+     'Trainer view of completed sessions',\
+     'Staff'],\
+    ['Active Sessions', \
+     `=QUERY('$\{TABS.SESSION_COUNTER\}'!A:I, "select A, B, C, G where G > 0 order by G desc")`,\
+     'Clients with remaining sessions',\
+     'Staff'],\
+    ['Payroll Summary',\
+     `=QUERY('$\{TABS.PAYROLL\}'!A:J, "select B, count(C), sum(H) where I = 'Pending' group by B label B 'Trainer', count(C) 'Sessions', sum(H) 'Total Pay'")`,\
+     'Pending trainer payments',\
+     'Admin']\
+  ]);\
+\}\
+\
+// ============== CUSTOMER ID CONSOLIDATION ==============\
+function consolidateCustomerID(customerID) \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const mapSheet = ss.getSheetByName(TABS.CUSTOMER_ID_MAP);\
+  \
+  if (!mapSheet || mapSheet.getLastRow() < 2) \{\
+    return customerID;\
+  \}\
+  \
+  const mappings = mapSheet.getRange(2, 1, mapSheet.getLastRow() - 1, 7).getValues();\
+  \
+  for (const mapping of mappings) \{\
+    if (mapping[0] === customerID && mapping[6] === true) \{\
+      return mapping[1];\
+    \}\
+  \}\
+  \
+  for (const mapping of mappings) \{\
+    if (mapping[1] === customerID) \{\
+      return customerID;\
+    \}\
+  \}\
+  \
+  return customerID;\
+\}\
+\
+function findClientByCustomerID(customerID) \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const clientsSheet = ss.getSheetByName(TABS.CLIENTS);\
+  \
+  if (clientsSheet.getLastRow() < 2) return null;\
+  \
+  const clientsData = clientsSheet.getRange(2, 1, clientsSheet.getLastRow() - 1, 8).getValues();\
+  \
+  for (const client of clientsData) \{\
+    if (client[6] === customerID) \{\
+      return \{\
+        clientId: client[0],\
+        name: `$\{client[1]\} $\{client[2]\}`.trim(),\
+        email: client[3]\
+      \};\
+    \}\
+  \}\
+  \
+  for (const client of clientsData) \{\
+    const allIDs = client[7] ? client[7].split(',').map(id => id.trim()) : [];\
+    if (allIDs.includes(customerID)) \{\
+      return \{\
+        clientId: client[0],\
+        name: `$\{client[1]\} $\{client[2]\}`.trim(),\
+        email: client[3]\
+      \};\
+    \}\
+  \}\
+  \
+  return null;\
+\}\
+\
+// ============== WEBHOOK HANDLER ==============\
+function doPost(e) \{\
+  const startTime = new Date();\
+  \
+  try \{\
+    const body = e.postData && e.postData.contents ? JSON.parse(e.postData.contents) : \{\};\
+    const ss = SpreadsheetApp.getActiveSpreadsheet();\
+    const logsSheet = ss.getSheetByName(TABS.SESSION_LOGS);\
+    \
+    const logId = 'LOG-' + Date.now() + '-' + Math.random().toString(36).substring(7);\
+    \
+    let originalCustomerId = body.clientId || body.customerId || '';\
+    let consolidatedCustomerId = consolidateCustomerID(originalCustomerId);\
+    \
+    let clientInfo = findClientByCustomerID(consolidatedCustomerId);\
+    let clientId = clientInfo ? clientInfo.clientId : '';\
+    \
+    const isTandem = (body.keywords && body.keywords.toLowerCase().includes('tandem')) ||\
+                     (body.title && body.title.toLowerCase().includes('tandem'));\
+    \
+    const sessionData = [\
+      logId,\
+      new Date(),\
+      clientId,\
+      originalCustomerId,\
+      body.trainer || body.staff || '',\
+      body.title || body.description || '',\
+      body.status || 'Completed',\
+      body.location || '',\
+      body.minutes || body.duration || '',\
+      (body.keywords || body.tags || '').toString(),\
+      false,\
+      '',\
+      '',\
+      isTandem,\
+      body.tandemPartner || ''\
+    ];\
+    \
+    logsSheet.appendRow(sessionData);\
+    processNewLogs();\
+    \
+    if (isTandem && clientId) \{\
+      handleTandemSession(logId, clientId, body.tandemPartner);\
+    \}\
+    \
+    logETL(ss, 'WEBHOOK', 1, 1, 0, 0, new Date() - startTime, `Received session: $\{logId\}`);\
+    \
+    return ContentService.createTextOutput(JSON.stringify(\{\
+      success: true,\
+      logId: logId,\
+      message: 'Session logged successfully',\
+      clientId: clientId,\
+      consolidatedCustomerId: consolidatedCustomerId\
+    \})).setMimeType(ContentService.MimeType.JSON);\
+    \
+  \} catch (error) \{\
+    console.error('Webhook error:', error);\
+    const ss = SpreadsheetApp.getActiveSpreadsheet();\
+    logETL(ss, 'WEBHOOK_ERROR', 0, 0, 0, 1, new Date() - startTime, error.toString());\
+    \
+    return ContentService.createTextOutput(JSON.stringify(\{\
+      success: false,\
+      error: error.toString()\
+    \})).setMimeType(ContentService.MimeType.JSON);\
+  \}\
+\}\
+\
+// ============== TANDEM SESSION HANDLING ==============\
+function handleTandemSession(sessionId, clientId, partnerId) \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const adjSheet = ss.getSheetByName(TABS.ADJUSTMENTS);\
+  \
+  adjSheet.appendRow([\
+    'ADJ-' + Date.now() + '-1',\
+    clientId,\
+    '',\
+    'credit',\
+    0,\
+    CONFIG.TANDEM.SESSION_CREDIT,\
+    'Tandem Credit',\
+    new Date(),\
+    sessionId\
+  ]);\
+  \
+  if (partnerId) \{\
+    adjSheet.appendRow([\
+      'ADJ-' + Date.now() + '-2',\
+      partnerId,\
+      '',\
+      'credit',\
+      0,\
+      CONFIG.TANDEM.SESSION_CREDIT,\
+      'Tandem Credit',\
+      new Date(),\
+      sessionId\
+    ]);\
+  \}\
+\}\
+\
+// ============== SESSION PROCESSING ==============\
+function processNewLogs() \{\
+  const startTime = new Date();\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const logsSheet = ss.getSheetByName(TABS.SESSION_LOGS);\
+  const mappingsSheet = ss.getSheetByName(TABS.MAPPINGS);\
+  \
+  const lastRow = logsSheet.getLastRow();\
+  if (lastRow < 2) return;\
+  \
+  const logsData = logsSheet.getRange(2, 1, lastRow - 1, 15).getValues();\
+  const mappings = getMappings(mappingsSheet);\
+  const salesIndex = buildSalesIndex(ss);\
+  \
+  let processed = 0, matched = 0, unmatched = 0;\
+  const updates = [];\
+  \
+  logsData.forEach((row, index) => \{\
+    const rowNum = index + 2;\
+    const isProcessed = row[10];\
+    \
+    if (isProcessed !== true && isProcessed !== 'TRUE') \{\
+      const status = row[6];\
+      const clientId = row[2];\
+      const customerId = row[3];\
+      const trainer = row[4];\
+      const title = row[5] || '';\
+      const keywords = row[9] || '';\
+      const isTandem = row[13];\
+      \
+      let deductQty = 0;\
+      let matchedSaleId = '';\
+      \
+      if (status === 'Completed' || status === 'completed') \{\
+        deductQty = inferDeductQuantity(title + ' ' + keywords, mappings);\
+        \
+        if (!clientId && customerId) \{\
+          const consolidatedId = consolidateCustomerID(customerId);\
+          const clientInfo = findClientByCustomerID(consolidatedId);\
+          if (clientInfo) \{\
+            logsSheet.getRange(rowNum, 3).setValue(clientInfo.clientId);\
+          \}\
+        \}\
+        matched++;\
+      \} else if (status === 'No-Show' || status === 'no-show') \{\
+        deductQty = 0.5;\
+        matched++;\
+      \}\
+      \
+      if ((clientId || customerId) && deductQty > 0) \{\
+        matchedSaleId = salesIndex[clientId || customerId] || '';\
+        if (!matchedSaleId) \{\
+          logDiscrepancy(ss, row[0], clientId, customerId, row[1], 'No active sale found');\
+          unmatched++;\
+        \}\
+      \}\
+      \
+      if (status === 'Completed' && trainer && deductQty > 0) \{\
+        createPayrollEntry(ss, row[0], trainer, row[1], title, isTandem);\
+      \}\
+      \
+      updates.push(\{\
+        row: rowNum,\
+        processed: true,\
+        deductQty: deductQty,\
+        matchedSaleId: matchedSaleId\
+      \});\
+      \
+      processed++;\
+    \}\
+  \});\
+  \
+  if (updates.length > 0) \{\
+    updates.forEach(update => \{\
+      logsSheet.getRange(update.row, 11).setValue(update.processed);\
+      logsSheet.getRange(update.row, 12).setValue(update.deductQty);\
+      logsSheet.getRange(update.row, 13).setValue(update.matchedSaleId);\
+    \});\
+  \}\
+  \
+  updateSessionCounter(ss);\
+  \
+  const duration = new Date() - startTime;\
+  logETL(ss, 'PROCESS_LOGS', processed, matched, unmatched, 0, duration, `Processed $\{processed\} logs`);\
+\}\
+\
+// ============== PAYROLL MANAGEMENT ==============\
+function createPayrollEntry(ss, sessionId, trainer, date, sessionType, isTandem) \{\
+  const payrollSheet = ss.getSheetByName(TABS.PAYROLL);\
+  const staffSheet = ss.getSheetByName(TABS.STAFF);\
+  \
+  let baseRate = 50;\
+  if (staffSheet.getLastRow() > 1) \{\
+    const staffData = staffSheet.getRange(2, 1, staffSheet.getLastRow() - 1, 5).getValues();\
+    const trainerInfo = staffData.find(row => row[1] === trainer);\
+    if (trainerInfo && trainerInfo[4]) \{\
+      baseRate = trainerInfo[4];\
+    \}\
+  \}\
+  \
+  const tandemBonus = isTandem ? CONFIG.TANDEM.TRAINER_BONUS : 0;\
+  const totalPay = baseRate + tandemBonus;\
+  \
+  payrollSheet.appendRow([\
+    'PAY-' + Date.now(),\
+    trainer,\
+    sessionId,\
+    date,\
+    sessionType,\
+    baseRate,\
+    tandemBonus,\
+    totalPay,\
+    'Pending',\
+    ''\
+  ]);\
+\}\
+\
+// ============== HELPER FUNCTIONS ==============\
+function inferDeductQuantity(text, mappings) \{\
+  const lowerText = text.toLowerCase();\
+  \
+  for (const mapping of mappings) \{\
+    if (mapping.keyword && lowerText.includes(mapping.keyword.toLowerCase())) \{\
+      return parseFloat(mapping.deductQty) || 0;\
+    \}\
+  \}\
+  \
+  return 1;\
+\}\
+\
+function getMappings(mappingsSheet) \{\
+  const lastRow = mappingsSheet.getLastRow();\
+  if (lastRow < 2) return [];\
+  \
+  const data = mappingsSheet.getRange(2, 1, lastRow - 1, 5).getValues();\
+  return data.map(row => (\{\
+    keyword: row[0],\
+    deductQty: row[1],\
+    sessionType: row[2],\
+    trainerRate: row[3],\
+    packageFilter: row[4]\
+  \}));\
+\}\
+\
+function buildSalesIndex(ss) \{\
+  const salesSheet = ss.getSheetByName(TABS.SALES);\
+  const lastRow = salesSheet.getLastRow();\
+  if (lastRow < 2) return \{\};\
+  \
+  const salesData = salesSheet.getRange(2, 1, lastRow - 1, 11).getValues();\
+  const index = \{\};\
+  \
+  salesData.sort((a, b) => \{\
+    const dateA = new Date(a[6] || a[5]);\
+    const dateB = new Date(b[6] || b[5]);\
+    return dateB - dateA;\
+  \});\
+  \
+  salesData.forEach(row => \{\
+    const saleId = row[0];\
+    const clientId = row[1];\
+    const customerId = row[2];\
+    \
+    if (clientId && !index[clientId]) \{\
+      index[clientId] = saleId;\
+    \}\
+    if (customerId && !index[customerId]) \{\
+      index[customerId] = saleId;\
+    \}\
+  \});\
+  \
+  return index;\
+\}\
+\
+function updateSessionCounter(ss) \{\
+  const counterSheet = ss.getSheetByName(TABS.SESSION_COUNTER);\
+  const clientsSheet = ss.getSheetByName(TABS.CLIENTS);\
+  const salesSheet = ss.getSheetByName(TABS.SALES);\
+  \
+  const clientsData = clientsSheet.getRange(2, 1, Math.max(1, clientsSheet.getLastRow() - 1), 3).getValues();\
+  const counterData = [];\
+  \
+  clientsData.forEach(client => \{\
+    const clientId = client[0];\
+    if (clientId) \{\
+      const latestSale = getLatestSaleForClient(salesSheet, clientId);\
+      const name = `$\{client[1]\} $\{client[2]\}`.trim();\
+      \
+      counterData.push([\
+        clientId,\
+        name,\
+        latestSale.packageName || '',\
+        '',\
+        '',\
+        '',\
+        '',\
+        '',\
+        latestSale.startDate || ''\
+      ]);\
+    \}\
+  \});\
+  \
+  if (counterData.length > 0) \{\
+    if (counterSheet.getLastRow() > 1) \{\
+      counterSheet.getRange(2, 1, counterSheet.getLastRow() - 1, 9).clearContent();\
+    \}\
+    counterSheet.getRange(2, 1, counterData.length, 9).setValues(counterData);\
+    setupFormulas(ss);\
+  \}\
+\}\
+\
+function getLatestSaleForClient(salesSheet, clientId) \{\
+  const lastRow = salesSheet.getLastRow();\
+  if (lastRow < 2) return \{\};\
+  \
+  const salesData = salesSheet.getRange(2, 1, lastRow - 1, 11).getValues();\
+  \
+  const clientSales = salesData.filter(row => row[1] === clientId);\
+  if (clientSales.length === 0) return \{\};\
+  \
+  clientSales.sort((a, b) => \{\
+    const dateA = new Date(a[6] || a[5]);\
+    const dateB = new Date(b[6] || b[5]);\
+    return dateB - dateA;\
+  \});\
+  \
+  return \{\
+    packageName: clientSales[0][3],\
+    startDate: clientSales[0][5]\
+  \};\
+\}\
+\
+function logDiscrepancy(ss, logId, clientId, customerId, date, reason) \{\
+  const discSheet = ss.getSheetByName(TABS.DISCREPANCIES);\
+  discSheet.appendRow([\
+    logId,\
+    clientId || '',\
+    customerId || '',\
+    date,\
+    reason,\
+    '',\
+    ''\
+  ]);\
+\}\
+\
+function logETL(ss, source, processed, matched, unmatched, errors, duration, notes) \{\
+  const auditSheet = ss.getSheetByName(TABS.ETL_AUDIT);\
+  const runId = 'ETL-' + Date.now();\
+  \
+  auditSheet.appendRow([\
+    runId,\
+    new Date(),\
+    source,\
+    processed,\
+    matched,\
+    unmatched,\
+    errors,\
+    duration,\
+    notes\
+  ]);\
+\}\
+\
+// ============== SQUARE API INTEGRATION ==============\
+function fetchFromSquare(startDate, endDate) \{\
+  const startTime = new Date();\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  \
+  try \{\
+    const props = PropertiesService.getScriptProperties();\
+    const appointmentsToken = props.getProperty('APPOINTMENTS_TOKEN');\
+    const salesToken = props.getProperty('SALES_TOKEN');\
+    const unifiedToken = props.getProperty('UNIFIED_TOKEN');\
+    \
+    let totalProcessed = 0;\
+    let totalMatched = 0;\
+    let totalUnmatched = 0;\
+    \
+    const appointmentsCutoff = CONFIG.ACCOUNTS.APPOINTMENTS_OLD.cutoffDate;\
+    const unifiedStart = CONFIG.ACCOUNTS.UNIFIED_NEW.startDate;\
+    \
+    if (startDate < appointmentsCutoff && appointmentsToken) \{\
+      const result = fetchBookings(appointmentsToken, 'APPOINTMENTS_OLD', \
+                                  startDate, Math.min(endDate, appointmentsCutoff));\
+      totalProcessed += result.processed;\
+      totalMatched += result.matched;\
+      totalUnmatched += result.unmatched;\
+    \}\
+    \
+    if (endDate >= unifiedStart && unifiedToken) \{\
+      const result = fetchBookings(unifiedToken, 'UNIFIED_NEW',\
+                                  Math.max(startDate, unifiedStart), endDate);\
+      totalProcessed += result.processed;\
+      totalMatched += result.matched;\
+      totalUnmatched += result.unmatched;\
+    \}\
+    \
+    if (salesToken) \{\
+      const salesResult = fetchOrders(salesToken, 'SALES', startDate, endDate);\
+      totalProcessed += salesResult.processed;\
+    \}\
+    \
+    processNewLogs();\
+    \
+    const duration = new Date() - startTime;\
+    logETL(ss, 'SQUARE_SYNC', totalProcessed, totalMatched, totalUnmatched, 0, duration, \
+           `Synced from $\{startDate.toISOString()\} to $\{endDate.toISOString()\}`);\
+    \
+    return \{\
+      success: true,\
+      processed: totalProcessed,\
+      matched: totalMatched,\
+      unmatched: totalUnmatched\
+    \};\
+    \
+  \} catch (error) \{\
+    console.error('Square sync error:', error);\
+    const duration = new Date() - startTime;\
+    logETL(ss, 'SQUARE_SYNC_ERROR', 0, 0, 0, 1, duration, error.toString());\
+    throw error;\
+  \}\
+\}\
+\
+function fetchBookings(token, source, startDate, endDate) \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const logsSheet = ss.getSheetByName(TABS.SESSION_LOGS);\
+  const props = PropertiesService.getScriptProperties();\
+  const locationId = props.getProperty(source === 'APPOINTMENTS_OLD' ? 'APPOINTMENTS_LOCATION' : \
+                                       source === 'SALES' ? 'SALES_LOCATION' : 'UNIFIED_LOCATION');\
+  \
+  let cursor = null;\
+  let processed = 0;\
+  let matched = 0;\
+  let unmatched = 0;\
+  \
+  do \{\
+    const url = `$\{CONFIG.API_BASE_URL\}/bookings`;\
+    const params = \{\
+      'limit': CONFIG.BATCH_SIZE,\
+      'location_id': locationId,\
+      'start_at_min': startDate.toISOString(),\
+      'start_at_max': endDate.toISOString()\
+    \};\
+    \
+    if (cursor) \{\
+      params.cursor = cursor;\
+    \}\
+    \
+    const options = \{\
+      'method': 'get',\
+      'headers': \{\
+        'Authorization': `Bearer $\{token\}`,\
+        'Content-Type': 'application/json',\
+        'Square-Version': '2024-01-18'\
+      \},\
+      'muteHttpExceptions': true\
+    \};\
+    \
+    const queryString = Object.keys(params)\
+      .map(key => `$\{key\}=$\{encodeURIComponent(params[key])\}`)\
+      .join('&');\
+    \
+    const response = UrlFetchApp.fetch(`$\{url\}?$\{queryString\}`, options);\
+    const result = JSON.parse(response.getContentText());\
+    \
+    if (result.bookings) \{\
+      result.bookings.forEach(booking => \{\
+        const logId = `$\{source\}-$\{booking.id\}`;\
+        \
+        if (!isDuplicateLog(logsSheet, logId)) \{\
+          const originalCustomerId = booking.customer_id || '';\
+          const consolidatedCustomerId = consolidateCustomerID(originalCustomerId);\
+          const clientInfo = findClientByCustomerID(consolidatedCustomerId);\
+          \
+          logsSheet.appendRow([\
+            logId,\
+            new Date(booking.start_at),\
+            clientInfo ? clientInfo.clientId : '',\
+            originalCustomerId,\
+            booking.team_member_id || '',\
+            booking.service_variation_name || booking.appointment_segments?.[0]?.service_variation_name || '',\
+            booking.status || 'ACCEPTED',\
+            booking.location_id || '',\
+            booking.duration_minutes || '',\
+            '',\
+            false,\
+            '',\
+            '',\
+            false,\
+            ''\
+          ]);\
+          \
+          processed++;\
+          if (originalCustomerId) \{\
+            matched++;\
+          \} else \{\
+            unmatched++;\
+          \}\
+        \}\
+      \});\
+    \}\
+    \
+    cursor = result.cursor;\
+  \} while (cursor);\
+  \
+  return \{ processed, matched, unmatched \};\
+\}\
+\
+function fetchOrders(token, source, startDate, endDate) \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const salesSheet = ss.getSheetByName(TABS.SALES);\
+  const props = PropertiesService.getScriptProperties();\
+  const locationId = props.getProperty('SALES_LOCATION');\
+  \
+  let processed = 0;\
+  const url = `$\{CONFIG.API_BASE_URL\}/orders/search`;\
+  \
+  const body = \{\
+    'location_ids': [locationId],\
+    'filter': \{\
+      'date_time_filter': \{\
+        'created_at': \{\
+          'start_at': startDate.toISOString(),\
+          'end_at': endDate.toISOString()\
+        \}\
+      \}\
+    \},\
+    'limit': CONFIG.BATCH_SIZE\
+  \};\
+  \
+  const options = \{\
+    'method': 'post',\
+    'headers': \{\
+      'Authorization': `Bearer $\{token\}`,\
+      'Content-Type': 'application/json',\
+      'Square-Version': '2024-01-18'\
+    \},\
+    'payload': JSON.stringify(body),\
+    'muteHttpExceptions': true\
+  \};\
+  \
+  const response = UrlFetchApp.fetch(url, options);\
+  const result = JSON.parse(response.getContentText());\
+  \
+  if (result.orders) \{\
+    result.orders.forEach(order => \{\
+      const lineItems = order.line_items || [];\
+      lineItems.forEach(item => \{\
+        if (item.name && (item.name.includes('Session') || item.name.includes('Pack'))) \{\
+          const originalCustomerId = order.customer_id || '';\
+          const consolidatedCustomerId = consolidateCustomerID(originalCustomerId);\
+          const clientInfo = findClientByCustomerID(consolidatedCustomerId);\
+          \
+          const sessionMatch = item.name.match(/(\\d+)[\\s-]*(Pack|Session)/i);\
+          const sessionCount = sessionMatch ? parseInt(sessionMatch[1]) : 1;\
+          \
+          salesSheet.appendRow([\
+            `$\{source\}-$\{order.id\}-$\{item.uid\}`,\
+            clientInfo ? clientInfo.clientId : '',\
+            originalCustomerId,\
+            item.name,\
+            sessionCount,\
+            new Date(order.created_at),\
+            new Date(order.created_at),\
+            parseFloat(item.base_price_money?.amount || 0) / 100,\
+            '',\
+            source,\
+            order.note || ''\
+          ]);\
+          \
+          processed++;\
+        \}\
+      \});\
+    \});\
+  \}\
+  \
+  return \{ processed \};\
+\}\
+\
+function isDuplicateLog(logsSheet, logId) \{\
+  const lastRow = logsSheet.getLastRow();\
+  if (lastRow < 2) return false;\
+  \
+  const logIds = logsSheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();\
+  return logIds.includes(logId);\
+\}\
+\
+// ============== CUSTOM MENU ==============\
+function createCustomMenu() \{\
+  const ui = SpreadsheetApp.getUi();\
+  ui.createMenu('Session Tracker')\
+    .addItem('Run Full Sync', 'runFullSync')\
+    .addItem('Process Pending Logs', 'processNewLogs')\
+    .addItem('Import Customer ID Mappings', 'importCustomerMappings')\
+    .addItem('Rebuild Indexes', 'rebuildAllIndexes')\
+    .addSeparator()\
+    .addSubMenu(ui.createMenu('Reports')\
+      .addItem('Export Discrepancies', 'exportDiscrepancies')\
+      .addItem('Payroll Summary', 'showPayrollSummary')\
+      .addItem('View Statistics', 'showStatistics'))\
+    .addSeparator()\
+    .addItem('Test System', 'runTests')\
+    .addItem('Setup Triggers', 'createTriggers')\
+    .addItem('Configure API Tokens', 'configureAllTokens')\
+    .addToUi();\
+    \
+  // Also create Data Import menu\
+  createImportMenu();\
+\}\
+\
+// ============== MENU FUNCTIONS ==============\
+function runFullSync() \{\
+  const ui = SpreadsheetApp.getUi();\
+  const response = ui.prompt('Full Sync', \
+    'Enter date range (YYYY-MM-DD to YYYY-MM-DD):\\n' +\
+    'Example: 2025-08-01 to 2025-09-15', \
+    ui.ButtonSet.OK_CANCEL);\
+  \
+  if (response.getSelectedButton() === ui.Button.OK) \{\
+    const dates = response.getResponseText().split(' to ');\
+    if (dates.length === 2) \{\
+      const startDate = new Date(dates[0]);\
+      const endDate = new Date(dates[1]);\
+      \
+      const result = fetchFromSquare(startDate, endDate);\
+      ui.alert(`Sync Complete!\\n\\nProcessed: $\{result.processed\}\\nMatched: $\{result.matched\}\\nUnmatched: $\{result.unmatched\}`);\
+    \} else \{\
+      ui.alert('Invalid date format. Please use: YYYY-MM-DD to YYYY-MM-DD');\
+    \}\
+  \}\
+\}\
+\
+function importCustomerMappings() \{\
+  const ui = SpreadsheetApp.getUi();\
+  const html = `\
+    <div style="padding: 20px;">\
+      <h3>Import Customer ID Mappings</h3>\
+      <p>Paste CSV data with columns:</p>\
+      <p><code>OldCustomerID, NewCustomerID, ClientName, Email</code></p>\
+      <textarea id="csvData" style="width: 100%; height: 200px;"></textarea>\
+      <br><br>\
+      <button onclick="importData()">Import</button>\
+      <button onclick="google.script.host.close()">Cancel</button>\
+    </div>\
+    <script>\
+      function importData() \{\
+        const data = document.getElementById('csvData').value;\
+        google.script.run.withSuccessHandler(() => \{\
+          alert('Import successful!');\
+          google.script.host.close();\
+        \}).processCustomerMappingImport(data);\
+      \}\
+    </script>\
+  `;\
+  \
+  const htmlOutput = HtmlService.createHtmlOutput(html)\
+    .setWidth(500)\
+    .setHeight(400);\
+  \
+  ui.showModalDialog(htmlOutput, 'Import Customer ID Mappings');\
+\}\
+\
+function processCustomerMappingImport(csvData) \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const mapSheet = ss.getSheetByName(TABS.CUSTOMER_ID_MAP);\
+  \
+  const rows = csvData.split('\\n').map(row => row.split(',').map(cell => cell.trim()));\
+  \
+  const dataRows = rows[0][0] === 'OldCustomerID' ? rows.slice(1) : rows;\
+  \
+  dataRows.forEach(row => \{\
+    if (row[0] && row[1]) \{\
+      mapSheet.appendRow([\
+        row[0],\
+        row[1],\
+        row[2] || '',\
+        row[3] || '',\
+        'Manual Import',\
+        new Date(),\
+        true\
+      ]);\
+    \}\
+  \});\
+  \
+  return true;\
+\}\
+\
+function showPayrollSummary() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const payrollSheet = ss.getSheetByName(TABS.PAYROLL);\
+  const ui = SpreadsheetApp.getUi();\
+  \
+  if (payrollSheet.getLastRow() < 2) \{\
+    ui.alert('No payroll data available');\
+    return;\
+  \}\
+  \
+  const data = payrollSheet.getRange(2, 1, payrollSheet.getLastRow() - 1, 10).getValues();\
+  \
+  const trainerSummary = \{\};\
+  let totalPending = 0;\
+  let totalPaid = 0;\
+  \
+  data.forEach(row => \{\
+    const trainer = row[1];\
+    const amount = row[7];\
+    const status = row[8];\
+    \
+    if (!trainerSummary[trainer]) \{\
+      trainerSummary[trainer] = \{ sessions: 0, pending: 0, paid: 0 \};\
+    \}\
+    \
+    trainerSummary[trainer].sessions++;\
+    if (status === 'Pending') \{\
+      trainerSummary[trainer].pending += amount;\
+      totalPending += amount;\
+    \} else \{\
+      trainerSummary[trainer].paid += amount;\
+      totalPaid += amount;\
+    \}\
+  \});\
+  \
+  let report = '\uc0\u55357 \u56496  PAYROLL SUMMARY\\n\\n';\
+  Object.entries(trainerSummary).forEach(([trainer, stats]) => \{\
+    report += `$\{trainer\}:\\n`;\
+    report += `  Sessions: $\{stats.sessions\}\\n`;\
+    report += `  Pending: $$\{stats.pending.toFixed(2)\}\\n`;\
+    report += `  Paid: $$\{stats.paid.toFixed(2)\}\\n\\n`;\
+  \});\
+  \
+  report += `TOTALS:\\n`;\
+  report += `Total Pending: $$\{totalPending.toFixed(2)\}\\n`;\
+  report += `Total Paid: $$\{totalPaid.toFixed(2)\}`;\
+  \
+  ui.alert('Payroll Summary', report, ui.ButtonSet.OK);\
+\}\
+\
+function rebuildAllIndexes() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  updateSessionCounter(ss);\
+  SpreadsheetApp.getUi().alert('Indexes rebuilt successfully!');\
+\}\
+\
+function exportDiscrepancies() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const discSheet = ss.getSheetByName(TABS.DISCREPANCIES);\
+  \
+  const exportSS = SpreadsheetApp.create('Discrepancies Export - ' + new Date().toLocaleDateString());\
+  const exportSheet = exportSS.getActiveSheet();\
+  \
+  const data = discSheet.getDataRange().getValues();\
+  if (data.length > 0) \{\
+    exportSheet.getRange(1, 1, data.length, data[0].length).setValues(data);\
+  \}\
+  \
+  const url = exportSS.getUrl();\
+  SpreadsheetApp.getUi().alert(`Discrepancies exported!\\n\\nView at: $\{url\}`);\
+\}\
+\
+function showStatistics() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const counterSheet = ss.getSheetByName(TABS.SESSION_COUNTER);\
+  const logsSheet = ss.getSheetByName(TABS.SESSION_LOGS);\
+  const discSheet = ss.getSheetByName(TABS.DISCREPANCIES);\
+  const mapSheet = ss.getSheetByName(TABS.CUSTOMER_ID_MAP);\
+  \
+  const totalClients = Math.max(0, counterSheet.getLastRow() - 1);\
+  const totalSessions = Math.max(0, logsSheet.getLastRow() - 1);\
+  const totalDiscrepancies = Math.max(0, discSheet.getLastRow() - 1);\
+  const totalMappings = Math.max(0, mapSheet.getLastRow() - 1);\
+  \
+  let activeSessions = 0;\
+  if (totalClients > 0) \{\
+    const counterData = counterSheet.getRange(2, 7, totalClients, 1).getValues();\
+    activeSessions = counterData.filter(row => row[0] > 0).length;\
+  \}\
+  \
+  SpreadsheetApp.getUi().alert(\
+    'System Statistics',\
+    `Total Clients: $\{totalClients\}\\n` +\
+    `Active Sessions: $\{activeSessions\}\\n` +\
+    `Total Session Logs: $\{totalSessions\}\\n` +\
+    `Customer ID Mappings: $\{totalMappings\}\\n` +\
+    `Unresolved Discrepancies: $\{totalDiscrepancies\}`,\
+    SpreadsheetApp.getUi().ButtonSet.OK\
+  );\
+\}\
+\
+// ============== TRIGGERS ==============\
+function createTriggers() \{\
+  const triggers = ScriptApp.getProjectTriggers();\
+  triggers.forEach(trigger => ScriptApp.deleteTrigger(trigger));\
+  \
+  ScriptApp.newTrigger('processNewLogs')\
+    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())\
+    .onChange()\
+    .create();\
+  \
+  ScriptApp.newTrigger('hourlySync')\
+    .timeBased()\
+    .everyHours(1)\
+    .create();\
+  \
+  SpreadsheetApp.getUi().alert('Triggers created successfully!');\
+\}\
+\
+function hourlySync() \{\
+  const now = new Date();\
+  const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));\
+  fetchFromSquare(oneHourAgo, now);\
+\}\
+\
+// ============== INITIALIZATION ==============\
+function initializeProperties() \{\
+  const props = PropertiesService.getScriptProperties();\
+  \
+  if (!props.getProperty('MATCH_WINDOW_DAYS')) \{\
+    props.setProperty('MATCH_WINDOW_DAYS', '1');\
+  \}\
+  if (!props.getProperty('BATCH_SIZE')) \{\
+    props.setProperty('BATCH_SIZE', '50');\
+  \}\
+\}\
+\
+// ============== TESTING ==============\
+function runTests() \{\
+  const ui = SpreadsheetApp.getUi();\
+  const results = [];\
+  \
+  try \{\
+    const ss = SpreadsheetApp.getActiveSpreadsheet();\
+    const allSheets = Object.values(TABS).every(tabName => ss.getSheetByName(tabName));\
+    results.push(`Sheet Creation: $\{allSheets ? '\uc0\u9989  PASS' : '\u10060  FAIL'\}`);\
+    \
+    const testConsolidation = consolidateCustomerID('OLD-123');\
+    results.push(`Customer ID Consolidation: \uc0\u9989  PASS`);\
+    \
+    const mappingsSheet = ss.getSheetByName(TABS.MAPPINGS);\
+    const mappings = getMappings(mappingsSheet);\
+    const tandemDeduct = inferDeductQuantity('tandem session with partner', mappings);\
+    results.push(`Tandem Detection: $\{tandemDeduct === 1 ? '\uc0\u9989  PASS' : '\u10060  FAIL'\}`);\
+    \
+    const counterSheet = ss.getSheetByName(TABS.SESSION_COUNTER);\
+    if (counterSheet.getLastRow() > 1) \{\
+      const formulas = counterSheet.getRange('D2:H2').getFormulas()[0];\
+      results.push(`Formulas: $\{formulas.filter(f => f).length >= 4 ? '\uc0\u9989  PASS' : '\u10060  FAIL'\}`);\
+    \} else \{\
+      results.push('Formulas: \uc0\u9888 \u65039  No data to test');\
+    \}\
+    \
+    const payrollSheet = ss.getSheetByName(TABS.PAYROLL);\
+    results.push(`Payroll System: $\{payrollSheet ? '\uc0\u9989  PASS' : '\u10060  FAIL'\}`);\
+    \
+    ui.alert('Test Results', results.join('\\n'), ui.ButtonSet.OK);\
+    \
+  \} catch (error) \{\
+    ui.alert('Test Error', error.toString(), ui.ButtonSet.OK);\
+  \}\
+\}\
+\
+// ============== DATA IMPORT FUNCTIONS ==============\
+function createImportMenu() \{\
+  const ui = SpreadsheetApp.getUi();\
+  \
+  ui.createMenu('Data Import')\
+    .addItem('Import PT Form Responses', 'importPersonalTrainingFormData')\
+    .addItem('Import Sales CSV', 'importSalesData')\
+    .addItem('Import Session History', 'importSessionHistory')\
+    .addSeparator()\
+    .addItem('Consolidate Duplicates', 'consolidateDuplicateCustomers')\
+    .addItem('Validate & Fix Data', 'validateAndFixData')\
+    .addItem('Generate Import Report', 'generateImportReport')\
+    .addToUi();\
+\}\
+\
+function importPersonalTrainingFormData() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const ui = SpreadsheetApp.getUi();\
+  \
+  const response = ui.prompt(\
+    'Import Form Data',\
+    'Enter the Google Sheets ID or URL for the Personal Training Sign In Form:',\
+    ui.ButtonSet.OK_CANCEL\
+  );\
+  \
+  if (response.getSelectedButton() !== ui.Button.OK) return;\
+  \
+  try \{\
+    let sheetId = response.getResponseText();\
+    if (sheetId.includes('/d/')) \{\
+      sheetId = sheetId.split('/d/')[1].split('/')[0];\
+    \}\
+    \
+    const sourceSheet = SpreadsheetApp.openById(sheetId);\
+    const formData = sourceSheet.getSheets()[0].getDataRange().getValues();\
+    \
+    processFormResponses(formData);\
+    \
+    ui.alert('Success', `Imported $\{formData.length - 1\} form responses`, ui.ButtonSet.OK);\
+    \
+  \} catch (error) \{\
+    ui.alert('Error', 'Failed to import form data: ' + error.toString(), ui.ButtonSet.OK);\
+  \}\
+\}\
+\
+function processFormResponses(data) \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const logsSheet = ss.getSheetByName('Session Logs');\
+  const payrollSheet = ss.getSheetByName('Payroll');\
+  \
+  const headers = data[0];\
+  const columnMap = \{\};\
+  headers.forEach((header, index) => \{\
+    columnMap[header.toLowerCase()] = index;\
+  \});\
+  \
+  for (let i = 1; i < data.length; i++) \{\
+    const row = data[i];\
+    \
+    const timestamp = row[columnMap['timestamp']] || new Date();\
+    const clientName = row[columnMap['client name']] || row[columnMap['name']] || '';\
+    const trainer = row[columnMap['trainer']] || row[columnMap['staff']] || '';\
+    const sessionType = row[columnMap['session type']] || row[columnMap['type']] || '';\
+    const duration = row[columnMap['duration']] || row[columnMap['minutes']] || 60;\
+    \
+    const isTandem = sessionType.toLowerCase().includes('tandem') || \
+                    sessionType.toLowerCase().includes('semi-private');\
+    \
+    const logId = 'FORM-' + i + '-' + Date.now();\
+    \
+    logsSheet.appendRow([\
+      logId,\
+      timestamp,\
+      '',\
+      '',\
+      trainer,\
+      sessionType,\
+      'Completed',\
+      'Main Gym',\
+      duration,\
+      sessionType.toLowerCase(),\
+      false,\
+      '',\
+      '',\
+      isTandem,\
+      ''\
+    ]);\
+    \
+    if (trainer) \{\
+      const baseRate = 50;\
+      const tandemBonus = isTandem ? 15 : 0;\
+      \
+      payrollSheet.appendRow([\
+        'PAY-IMPORT-' + i,\
+        trainer,\
+        logId,\
+        timestamp,\
+        sessionType,\
+        baseRate,\
+        tandemBonus,\
+        baseRate + tandemBonus,\
+        'Pending',\
+        ''\
+      ]);\
+    \}\
+  \}\
+  \
+  processNewLogs();\
+\}\
+\
+function importSalesData() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const ui = SpreadsheetApp.getUi();\
+  \
+  const html = `\
+    <div style="padding: 20px;">\
+      <h3>Import Sales Data</h3>\
+      <p>Paste CSV data with columns:</p>\
+      <p style="font-size: 12px; font-family: monospace;">\
+        Date Invoiced, Date Paid, Client Name, Due Date, Payment Status, Amount Paid, Invoice Number, Customer ID\
+      </p>\
+      <textarea id="csvData" style="width: 100%; height: 250px; font-family: monospace; font-size: 11px;"></textarea>\
+      <br><br>\
+      <button onclick="importData()" style="padding: 10px 20px; background: #4285f4; color: white; border: none; border-radius: 5px;">Import</button>\
+      <button onclick="google.script.host.close()" style="padding: 10px 20px; margin-left: 10px;">Cancel</button>\
+    </div>\
+    <script>\
+      function importData() \{\
+        const data = document.getElementById('csvData').value;\
+        google.script.run\
+          .withSuccessHandler(() => \{\
+            alert('Import successful!');\
+            google.script.host.close();\
+          \})\
+          .withFailureHandler((error) => \{\
+            alert('Import failed: ' + error);\
+          \})\
+          .processSalesImport(data);\
+      \}\
+    </script>\
+  `;\
+  \
+  const htmlOutput = HtmlService.createHtmlOutput(html)\
+    .setWidth(600)\
+    .setHeight(450);\
+  \
+  ui.showModalDialog(htmlOutput, 'Import Sales Data');\
+\}\
+\
+function processSalesImport(csvData) \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const salesSheet = ss.getSheetByName('Sales');\
+  const clientsSheet = ss.getSheetByName('Clients');\
+  \
+  const rows = csvData.split('\\n').map(row => \{\
+    const matches = row.match(/(".*?"|[^",\\s]+)(?=\\s*,|\\s*$)/g);\
+    return matches ? matches.map(m => m.replace(/^"(.*)"$/, '$1').trim()) : [];\
+  \});\
+  \
+  const hasHeader = rows[0][0] && rows[0][0].toLowerCase().includes('date');\
+  const dataRows = hasHeader ? rows.slice(1) : rows;\
+  \
+  let imported = 0;\
+  \
+  dataRows.forEach((row, index) => \{\
+    if (row.length < 7) return;\
+    \
+    const dateInvoiced = new Date(row[0]);\
+    const datePaid = row[1] ? new Date(row[1]) : dateInvoiced;\
+    const clientName = row[2];\
+    const amountPaid = parseFloat(row[5]) || 0;\
+    const invoiceNumber = row[6];\
+    const customerID = row[7] || '';\
+    \
+    let packageName = 'Sessions';\
+    let sessionCount = 1;\
+    \
+    if (amountPaid >= 900) \{\
+      packageName = '20-Pack Sessions';\
+      sessionCount = 20;\
+    \} else if (amountPaid >= 450 && amountPaid < 550) \{\
+      packageName = '10-Pack Sessions';\
+      sessionCount = 10;\
+    \} else if (amountPaid >= 200 && amountPaid < 300) \{\
+      packageName = '5-Pack Sessions';\
+      sessionCount = 5;\
+    \} else if (amountPaid >= 1000) \{\
+      packageName = 'Monthly Unlimited';\
+      sessionCount = 30;\
+    \}\
+    \
+    let clientId = findOrCreateClient(clientsSheet, clientName, customerID);\
+    \
+    salesSheet.appendRow([\
+      invoiceNumber || 'SALE-IMPORT-' + index,\
+      clientId,\
+      customerID,\
+      packageName,\
+      sessionCount,\
+      datePaid,\
+      dateInvoiced,\
+      amountPaid,\
+      '',\
+      'IMPORT',\
+      `Imported from sales data`\
+    ]);\
+    \
+    imported++;\
+  \});\
+  \
+  updateSessionCounter(ss);\
+  \
+  return imported;\
+\}\
+\
+function findOrCreateClient(clientsSheet, name, customerID) \{\
+  if (customerID) \{\
+    const clients = clientsSheet.getDataRange().getValues();\
+    for (let i = 1; i < clients.length; i++) \{\
+      if (clients[i][7] && clients[i][7].includes(customerID)) \{\
+        return clients[i][0];\
+      \}\
+    \}\
+  \}\
+  \
+  const nameParts = name.split(' ');\
+  const firstName = nameParts[0] || '';\
+  const lastName = nameParts.slice(1).join(' ') || '';\
+  \
+  const clients = clientsSheet.getDataRange().getValues();\
+  for (let i = 1; i < clients.length; i++) \{\
+    if (clients[i][1] === firstName && clients[i][2] === lastName) \{\
+      if (customerID && !clients[i][7].includes(customerID)) \{\
+        const allIDs = clients[i][7] ? clients[i][7] + ',' + customerID : customerID;\
+        clientsSheet.getRange(i + 1, 8).setValue(allIDs);\
+      \}\
+      return clients[i][0];\
+    \}\
+  \}\
+  \
+  const newClientId = 'CL-' + Date.now();\
+  clientsSheet.appendRow([\
+    newClientId,\
+    firstName,\
+    lastName,\
+    '',\
+    '',\
+    'Active',\
+    customerID,\
+    customerID\
+  ]);\
+  \
+  return newClientId;\
+\}\
+\
+function consolidateDuplicateCustomers() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const clientsSheet = ss.getSheetByName('Clients');\
+  const mapSheet = ss.getSheetByName('CustomerIDMap');\
+  const ui = SpreadsheetApp.getUi();\
+  \
+  if (clientsSheet.getLastRow() < 2) \{\
+    ui.alert('No clients to consolidate');\
+    return;\
+  \}\
+  \
+  const clients = clientsSheet.getRange(2, 1, clientsSheet.getLastRow() - 1, 8).getValues();\
+  const duplicates = \{\};\
+  \
+  clients.forEach((client, index) => \{\
+    const fullName = `$\{client[1]\} $\{client[2]\}`.trim().toLowerCase();\
+    if (!duplicates[fullName]) \{\
+      duplicates[fullName] = [];\
+    \}\
+    duplicates[fullName].push(\{\
+      row: index + 2,\
+      clientId: client[0],\
+      customerIds: client[7] ? client[7].split(',') : [],\
+      email: client[3]\
+    \});\
+  \});\
+  \
+  let consolidationCount = 0;\
+  \
+  Object.entries(duplicates).forEach(([name, entries]) => \{\
+    if (entries.length > 1) \{\
+      entries.sort((a, b) => \{\
+        if (a.email && !b.email) return -1;\
+        if (!a.email && b.email) return 1;\
+        return b.customerIds.length - a.customerIds.length;\
+      \});\
+      \
+      const primary = entries[0];\
+      const allCustomerIds = new Set();\
+      \
+      entries.forEach(entry => \{\
+        entry.customerIds.forEach(id => allCustomerIds.add(id));\
+      \});\
+      \
+      clientsSheet.getRange(primary.row, 8).setValue(Array.from(allCustomerIds).join(','));\
+      \
+      entries.slice(1).forEach(entry => \{\
+        entry.customerIds.forEach(oldId => \{\
+          if (oldId && oldId !== primary.customerIds[0]) \{\
+            mapSheet.appendRow([\
+              oldId,\
+              primary.customerIds[0] || primary.clientId,\
+              name,\
+              primary.email || '',\
+              'Auto-consolidation',\
+              new Date(),\
+              true\
+            ]);\
+          \}\
+        \});\
+        \
+        clientsSheet.getRange(entry.row, 6).setValue('Duplicate');\
+      \});\
+      \
+      consolidationCount++;\
+    \}\
+  \});\
+  \
+  ui.alert(`Consolidation Complete`, \
+    `Found and consolidated $\{consolidationCount\} duplicate client records`, \
+    ui.ButtonSet.OK);\
+\}\
+\
+function validateAndFixData() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const ui = SpreadsheetApp.getUi();\
+  const fixes = [];\
+  \
+  const logsSheet = ss.getSheetByName('Session Logs');\
+  const logsData = logsSheet.getRange(2, 1, Math.max(1, logsSheet.getLastRow() - 1), 15).getValues();\
+  \
+  let unmatchedFixed = 0;\
+  logsData.forEach((log, index) => \{\
+    if (!log[2] && log[3]) \{\
+      const consolidatedId = consolidateCustomerID(log[3]);\
+      const clientInfo = findClientByCustomerID(consolidatedId);\
+      if (clientInfo) \{\
+        logsSheet.getRange(index + 2, 3).setValue(clientInfo.clientId);\
+        unmatchedFixed++;\
+      \}\
+    \}\
+  \});\
+  \
+  if (unmatchedFixed > 0) \{\
+    fixes.push(`\uc0\u10003  Matched $\{unmatchedFixed\} session logs to clients`);\
+  \}\
+  \
+  const unprocessed = logsData.filter(log => log[10] !== true && log[10] !== 'TRUE');\
+  if (unprocessed.length > 0) \{\
+    processNewLogs();\
+    fixes.push(`\uc0\u10003  Processed $\{unprocessed.length\} pending session logs`);\
+  \}\
+  \
+  updateSessionCounter(ss);\
+  fixes.push(`\uc0\u10003  Rebuilt session counter`);\
+  \
+  const tandemLogs = logsData.filter(log => log[13] === true);\
+  const adjSheet = ss.getSheetByName('Adjustments');\
+  const adjData = adjSheet.getDataRange().getValues();\
+  \
+  let missingCredits = 0;\
+  tandemLogs.forEach(log => \{\
+    const hasCredit = adjData.some(adj => adj[8] === log[0]);\
+    if (!hasCredit && log[2]) \{\
+      handleTandemSession(log[0], log[2], log[14]);\
+      missingCredits++;\
+    \}\
+  \});\
+  \
+  if (missingCredits > 0) \{\
+    fixes.push(`\uc0\u10003  Added $\{missingCredits\} missing tandem credits`);\
+  \}\
+  \
+  const message = fixes.length > 0 \
+    ? 'Data Validation Complete:\\n\\n' + fixes.join('\\n')\
+    : 'No issues found - data is valid!';\
+  \
+  ui.alert('Data Validation', message, ui.ButtonSet.OK);\
+\}\
+\
+function importSessionHistory() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const ui = SpreadsheetApp.getUi();\
+  \
+  const html = `\
+    <div style="padding: 20px;">\
+      <h3>Import Session History</h3>\
+      <p>Select source type:</p>\
+      <select id="sourceType" style="width: 100%; padding: 10px; margin-bottom: 10px;">\
+        <option value="calendar">Google Calendar Export</option>\
+        <option value="square">Square Bookings Export</option>\
+        <option value="custom">Custom CSV Format</option>\
+      </select>\
+      <p>Paste data:</p>\
+      <textarea id="data" style="width: 100%; height: 200px; font-family: monospace; font-size: 11px;"></textarea>\
+      <br><br>\
+      <button onclick="importHistory()" style="padding: 10px 20px; background: #4285f4; color: white; border: none; border-radius: 5px;">Import</button>\
+      <button onclick="google.script.host.close()" style="padding: 10px 20px; margin-left: 10px;">Cancel</button>\
+    </div>\
+    <script>\
+      function importHistory() \{\
+        const sourceType = document.getElementById('sourceType').value;\
+        const data = document.getElementById('data').value;\
+        google.script.run\
+          .withSuccessHandler(() => \{\
+            alert('Import successful!');\
+            google.script.host.close();\
+          \})\
+          .withFailureHandler((error) => \{\
+            alert('Import failed: ' + error);\
+          \})\
+          .processHistoryImport(sourceType, data);\
+      \}\
+    </script>\
+  `;\
+  \
+  const htmlOutput = HtmlService.createHtmlOutput(html)\
+    .setWidth(600)\
+    .setHeight(450);\
+  \
+  ui.showModalDialog(htmlOutput, 'Import Session History');\
+\}\
+\
+function processHistoryImport(sourceType, data) \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const logsSheet = ss.getSheetByName('Session Logs');\
+  \
+  const rows = data.split('\\n').map(row => row.split(/[,\\t]/).map(cell => cell.trim()));\
+  let imported = 0;\
+  \
+  rows.forEach((row, index) => \{\
+    if (row.length < 3) return;\
+    \
+    let logEntry = [];\
+    \
+    if (sourceType === 'calendar') \{\
+      logEntry = [\
+        'CAL-IMPORT-' + index,\
+        new Date(row[0]),\
+        '',\
+        '',\
+        row[4] || 'Unknown',\
+        row[1],\
+        'Completed',\
+        row[5] || 'Main Gym',\
+        parseInt(row[2]) || 60,\
+        row[1].toLowerCase(),\
+        false,\
+        '',\
+        '',\
+        row[1].toLowerCase().includes('tandem'),\
+        ''\
+      ];\
+    \} else if (sourceType === 'square') \{\
+      logEntry = [\
+        'SQ-IMPORT-' + row[0],\
+        new Date(row[1]),\
+        '',\
+        row[2],\
+        '',\
+        row[3],\
+        row[5] || 'Completed',\
+        'Main Gym',\
+        parseInt(row[4]) || 60,\
+        row[3].toLowerCase(),\
+        false,\
+        '',\
+        '',\
+        row[3].toLowerCase().includes('tandem'),\
+        ''\
+      ];\
+    \} else \{\
+      logEntry = [\
+        'CUSTOM-IMPORT-' + index,\
+        new Date(row[0]),\
+        '',\
+        '',\
+        row[3] || '',\
+        row[2],\
+        'Completed',\
+        'Main Gym',\
+        60,\
+        row[2].toLowerCase(),\
+        false,\
+        '',\
+        '',\
+        row[2].toLowerCase().includes('tandem'),\
+        ''\
+      ];\
+    \}\
+    \
+    logsSheet.appendRow(logEntry);\
+    imported++;\
+  \});\
+  \
+  processNewLogs();\
+  \
+  return imported;\
+\}\
+\
+function generateImportReport() \{\
+  const ss = SpreadsheetApp.getActiveSpreadsheet();\
+  const ui = SpreadsheetApp.getUi();\
+  \
+  const report = [];\
+  \
+  const logsSheet = ss.getSheetByName('Session Logs');\
+  const logsData = logsSheet.getRange(2, 1, Math.max(1, logsSheet.getLastRow() - 1), 1).getValues().flat();\
+  \
+  const sources = \{\
+    'FORM': 0,\
+    'CAL': 0,\
+    'SQUARE': 0,\
+    'APPOINTMENTS_OLD': 0,\
+    'UNIFIED_NEW': 0,\
+    'SALES': 0,\
+    'CUSTOM': 0,\
+    'LOG': 0,\
+    'Other': 0\
+  \};\
+  \
+  logsData.forEach(logId => \{\
+    const prefix = logId.split('-')[0];\
+    if (sources[prefix] !== undefined) \{\
+      sources[prefix]++;\
+    \} else \{\
+      sources['Other']++;\
+    \}\
+  \});\
+  \
+  report.push('\uc0\u55357 \u56522  IMPORT REPORT\\n');\
+  report.push('Session Logs by Source:');\
+  Object.entries(sources).forEach(([source, count]) => \{\
+    if (count > 0) \{\
+      report.push(`  $\{source\}: $\{count\} records`);\
+    \}\
+  \});\
+  \
+  const clientsSheet = ss.getSheetByName('Clients');\
+  const salesSheet = ss.getSheetByName('Sales');\
+  const mapSheet = ss.getSheetByName('CustomerIDMap');\
+  \
+  report.push('\\nData Quality:');\
+  report.push(`  Total Clients: $\{Math.max(0, clientsSheet.getLastRow() - 1)\}`);\
+  report.push(`  Total Sales: $\{Math.max(0, salesSheet.getLastRow() - 1)\}`);\
+  report.push(`  Customer ID Mappings: $\{Math.max(0, mapSheet.getLastRow() - 1)\}`);\
+  \
+  const discSheet = ss.getSheetByName('Discrepancies');\
+  const unresolved = Math.max(0, discSheet.getLastRow() - 1);\
+  \
+  if (unresolved > 0) \{\
+    report.push(`\\n\uc0\u9888 \u65039  Unresolved Issues: $\{unresolved\}`);\
+    report.push('Run "Validate & Fix Data" to resolve');\
+  \} else \{\
+    report.push('\\n\uc0\u9989  No unresolved issues');\
+  \}\
+  \
+  ui.alert('Import Report', report.join('\\n'), ui.ButtonSet.OK);\
+\}\
+\
+// ============== ON OPEN ==============\
+function onOpen() \{\
+  createCustomMenu();\
+\}}
