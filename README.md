@@ -25,11 +25,7 @@ FitClinic is a fitness and wellness management platform designed to help fitness
 
 ### Prerequisites
 
-_(To be updated based on technology stack)_
-
-- Node.js (version TBD)
-- Database (PostgreSQL/MongoDB/etc.)
-- Other dependencies as needed
+- Node.js (v18 or later)
 
 ### Installation
 
@@ -41,18 +37,19 @@ git clone https://github.com/fitanon/fitclinic.git
 cd fitclinic
 
 # Install dependencies
-# npm install (or appropriate package manager command)
-
-# Set up environment variables
-# Copy .env.example to .env and configure
+npm install
 
 # Run the application
-# npm start (or appropriate command)
+npm start
 ```
 
-### Configuration
+The server will start at `http://localhost:3000`. You can set a custom port via the `PORT` environment variable.
 
-Configuration details will be provided as the project develops.
+For development with auto-restart on file changes:
+
+```bash
+npm run dev
+```
 
 ## Usage
 
@@ -62,19 +59,19 @@ Detailed usage instructions and API documentation will be added as features are 
 
 ```
 fitclinic/
-├── README.md           # This file
-├── (To be organized as project develops)
+├── public/             # Static assets served by Express
+│   └── index.html      # Landing page
+├── server.js           # Express server entry point
+├── package.json        # Project metadata and dependencies
+├── .gitignore          # Git ignore rules
+└── README.md           # This file
 ```
 
 ## Technology Stack
 
-_(To be determined - common options include)_
-
-- **Frontend**: React, Vue, or Angular
-- **Backend**: Node.js, Python Django/Flask, or Ruby on Rails
-- **Database**: PostgreSQL, MySQL, or MongoDB
-- **Authentication**: JWT, OAuth
-- **Deployment**: Docker, AWS, or similar
+- **Runtime**: Node.js
+- **Server**: Express
+- **Frontend**: Static HTML/CSS/JS (landing page)
 
 ## Contributing
 
@@ -95,7 +92,7 @@ Contributions are welcome! Please follow these steps:
 
 ## Roadmap
 
-- [ ] Set up project infrastructure and technology stack
+- [x] Set up project infrastructure and technology stack
 - [ ] Implement user authentication and authorization
 - [ ] Build client management system
 - [ ] Create workout planning module

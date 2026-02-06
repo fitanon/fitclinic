@@ -1,0 +1,21 @@
+{
+  "name": "fitclinic",
+  "version": "0.1.0",
+  "description": "Fitness and wellness management platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "fitness",
+    "wellness",
+    "health",
+    "clinic",
+    "management"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
