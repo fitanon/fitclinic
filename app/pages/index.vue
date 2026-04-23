@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { user } = useUserSession();
+const { enterGuestMode } = useGuestMode();
 
 watchEffect(async () => {
   if (user.value) {
@@ -24,5 +25,9 @@ watchEffect(async () => {
       <UIcon name="i-simple-icons-github" class="h-5 w-5" />
       Continue with GitHub
     </a>
+    <button @click="enterGuestMode(); navigateTo('/guest')" class="button bg-green-500/80 px-2.5 py-2 text-black/80 hover:bg-green-400/80">
+      <UIcon name="i-heroicons-play-16-solid" class="h-5 w-5" />
+      Try Demo
+    </button>
   </Card>
 </template>
